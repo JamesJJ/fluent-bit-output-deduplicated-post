@@ -55,55 +55,55 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 //export FLBPluginInit
 func FLBPluginInit(plugin unsafe.Pointer) int {
 
-	id := output.FLBPluginConfigKey(plugin, "id")
+	flbCK := func(k string) string {
+		return output.FLBPluginConfigKey(plugin, k)
+	}
+
+	id := flbCK("id")
 	if len(id) < 1 {
-		Logger("info", "").Error.Printf("[%s] Missing `Id` in [OUTPUT] config", PLUGIN_NAME)
+		Logger("info", "").Error.Printf("[%s] Missing `Id` in [OUTPUT] config\n", PLUGIN_NAME)
 		return output.FLB_ERROR
 	}
 	output.FLBPluginSetContext(plugin, id)
 
 	conf[id] = &Config{}
 
-	conf[id].LogLevel = output.FLBPluginConfigKey(plugin, "log")
+	conf[id].LogLevel = flbCK("log")
 	if len(conf[id].LogLevel) < 4 {
 		conf[id].LogLevel = "info"
 	}
 
 	Log = Logger(conf[id].LogLevel, fmt.Sprintf("[%s] [%s] ", PLUGIN_NAME, id))
 
-	if parsedToBool, err := strconv.ParseBool(output.FLBPluginConfigKey(plugin, "gzip_body")); err == nil {
-		conf[id].GzipBody = parsedToBool
+	conf[id].MaxRecords = parseInteger(flbCK("max_records"), 20)
+	conf[id].DeduplicateSize = int(parseInteger(flbCK("deduplicate_size"), 1024))
+	conf[id].DeduplicateTTL = parseInteger(flbCK("deduplicate_ttl"), 86400*7)
+	conf[id].GzipBody = parseBool(flbCK("gzip_body"), true)
+	conf[id].PostUrl = flbCK("post_url")
+	conf[id].MatchMapFile = flbCK("match_map_file")
+	conf[id].OutputTimeKey = flbCK("output_time_key")
+	conf[id].OutputTimeFormat = flbCK("output_time_format")
+	csvAppend(flbCK("deduplicate_key_fields"), &conf[id].DeduplicateKeyFields)
+	csvAppend(flbCK("remove_fields"), &conf[id].RemoveFields)
+
+	if len(conf[id].PostUrl) == 0 {
+		Log.Error.Printf("Specifying `post_url` is mandatory")
+		return output.FLB_ERROR
 	}
-	if parsedNumber, err := strconv.ParseUint(output.FLBPluginConfigKey(plugin, "max_records"), 10, 64); err == nil {
-		conf[id].MaxRecords = parsedNumber
-	}
-	if parsedNumber, err := strconv.ParseUint(output.FLBPluginConfigKey(plugin, "deduplicate_size"), 10, 32); err == nil {
-		conf[id].DeduplicateSize = int(parsedNumber)
-		if conf[id].LRU, err = lru.New(conf[id].DeduplicateSize); err != nil {
-			Log.Error.Printf("Failed to create LRU")
-			return output.FLB_ERROR
-		}
-	}
-	if parsedNumber, err := strconv.ParseUint(output.FLBPluginConfigKey(plugin, "deduplicate_ttl"), 10, 64); err == nil {
-		conf[id].DeduplicateTTL = parsedNumber
-	}
-	for _, v := range strings.Split(output.FLBPluginConfigKey(plugin, "deduplicate_key_fields"), ",") {
-		conf[id].DeduplicateKeyFields = append(conf[id].DeduplicateKeyFields, strings.TrimSpace(v))
-	}
-	for _, v := range strings.Split(output.FLBPluginConfigKey(plugin, "remove_fields"), ",") {
-		conf[id].RemoveFields = append(conf[id].RemoveFields, strings.TrimSpace(v))
-	}
-	conf[id].PostUrl = output.FLBPluginConfigKey(plugin, "post_url")
-	conf[id].MatchMapFile = output.FLBPluginConfigKey(plugin, "match_map_file")
-	conf[id].OutputTimeKey = output.FLBPluginConfigKey(plugin, "output_time_key")
-	conf[id].OutputTimeFormat = output.FLBPluginConfigKey(plugin, "output_time_format")
 
 	if conf[id].DeduplicateSize+len(conf[id].DeduplicateKeyFields) > 0 && (conf[id].DeduplicateSize == 0 || len(conf[id].DeduplicateKeyFields) == 0) {
-		Log.Error.Printf("Specify both `deduplicate_key_fields` and `deduplicate_size`, or neither")
+		Log.Error.Printf("Specify both `deduplicate_key_fields` and `deduplicate_size`, or neither\n")
 		return output.FLB_ERROR
 	}
 
 	Log.Info.Printf("Configuration => %+v\n", *conf[id])
+
+	if newLru, err := lru.New(conf[id].DeduplicateSize); err == nil {
+		conf[id].LRU = newLru
+	} else {
+		Log.Error.Printf("Failed to create LRU: %#v\n", err)
+		return output.FLB_ERROR
+	}
 
 	if err := loadMatchMapFile(conf[id].MatchMapFile, &matchMap); err != nil {
 		Log.Error.Printf("Failed to load match map file: %+v\n", err)
@@ -182,11 +182,13 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 			delete(stringified, removeFieldKey)
 		}
 
+		// TODO: add "timestamp" field to stringified
+
 		//TODO move to goroutine
 		if json, err := json.Marshal(stringified); err == nil {
 			Log.Info.Printf("SENDING => %s\n", json)
 		} else {
-			Log.Error.Printf("Failed to marshal as JSON: %#v", err)
+			Log.Error.Printf("Failed to marshal as JSON: %#v\n", err)
 		}
 
 	}
@@ -197,6 +199,27 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 //export FLBPluginExit
 func FLBPluginExit() int {
 	return output.FLB_OK
+}
+
+func parseInteger(s string, d uint64) uint64 {
+	if parsedNumber, err := strconv.ParseUint(s, 10, 64); err != nil || len(s) == 0 {
+		return d
+	} else {
+		return parsedNumber
+	}
+}
+
+func parseBool(s string, d bool) bool {
+	if parsedToBool, err := strconv.ParseBool(s); err == nil {
+		return parsedToBool
+	}
+	return d
+}
+
+func csvAppend(s string, l *[]string) {
+	for _, v := range strings.Split(s, ",") {
+		*l = append(*l, strings.TrimSpace(v))
+	}
 }
 
 // TODO: MMF should be optional
