@@ -57,15 +57,21 @@ func (httpClient HttpClient) postData(
 ) {
 
 	defaultUserAgent := "FLB/go-odp (github.com/JamesJJ/fluent-bit-output-deduplicated-post)"
-	request, err := http.NewRequest("POST", url, data)
+	request, reqErr := http.NewRequest("POST", url, data)
+	if reqErr != nil {
+		log.Error.Printf(
+			"HTTP request init failed: %#v\n",
+			reqErr,
+		)
+		return
+	}
 	request.Header.Set("User-Agent", defaultUserAgent)
 	if headers != nil {
 		for hk, hv := range *headers {
 			request.Header.Set(hk, hv)
 		}
 	}
-	resp, err := httpClient.Do(request)
-	if err != nil {
+	if resp, err := httpClient.Do(request); err != nil {
 		log.Error.Printf(
 			"HTTP request failed: %#v\n",
 			err,
@@ -86,11 +92,11 @@ func (httpClient HttpClient) postData(
 			"HTTP response body: %#v\n",
 			string(body),
 		)
-	}
-	if resp.StatusCode >= 400 {
-		log.Error.Printf(
-			"HTTP response not ok: %#v\n",
-			resp,
-		)
+		if resp.StatusCode >= 400 {
+			log.Error.Printf(
+				"HTTP response not ok: %#v\n",
+				resp,
+			)
+		}
 	}
 }
