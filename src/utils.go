@@ -68,7 +68,7 @@ func matchRecordToMatchMap(stringifiedRecord StringifiedRecordType, matchMap Mat
 	WILDCARD := "*"
 	matched := make(map[string]string)
 	for mmKey, mmChild := range matchMap {
-		if _, keyExists := stringifiedRecord[mmKey]; keyExists == true {
+		if _, keyExists := stringifiedRecord[mmKey]; keyExists {
 			for mmChildKey, mmChildValuesMap := range mmChild {
 				if strings.HasSuffix(mmChildKey, WILDCARD) {
 					prefixToMatch := strings.Split(mmChildKey, WILDCARD)[0]

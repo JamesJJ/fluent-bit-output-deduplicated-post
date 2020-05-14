@@ -153,7 +153,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		if ok, matched, additionalFields, _ := matchRecordToMatchMap(
 			stringified,
 			pi.MatchMap,
-		); ok != true {
+		); !ok {
 			// the record did not match the match map
 			log.Debug.Printf(
 				"Record did not match: recordIndex=%d\n",
@@ -205,7 +205,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		}
 
 		// Add the current record to the LRU
-		if evicted := pi.LRU.Add(lruKey, timestampAsTime); evicted == true {
+		if evicted := pi.LRU.Add(lruKey, timestampAsTime); evicted {
 			log.Info.Printf(
 				"LRU evicted old record\n",
 			)
@@ -243,7 +243,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 //export FLBPluginExit
 func FLBPluginExit() int {
-	for k, _ := range flbInstances {
+	for k := range flbInstances {
 		close(flbInstances[k].EventJsonChan)
 	}
 	wg.Wait()

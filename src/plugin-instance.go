@@ -46,7 +46,7 @@ func makePInstance(conf *Config) (*PInstance, error) {
 	newLru, lruErr := lru.New(conf.DeduplicateSize)
 	if lruErr != nil {
 		return nil, fmt.Errorf(
-			"Failed to create LRU: %v\n",
+			"Failed to create LRU: %v",
 			lruErr,
 		)
 	}
@@ -54,7 +54,7 @@ func makePInstance(conf *Config) (*PInstance, error) {
 	var matchMap MatchMapType
 	if mmfErr := loadMatchMapFile(conf.MatchMapFile, &matchMap); mmfErr != nil {
 		return nil, fmt.Errorf(
-			"Failed to load match map file: %v\n",
+			"Failed to load match map file: %v",
 			mmfErr,
 		)
 	}
@@ -62,7 +62,7 @@ func makePInstance(conf *Config) (*PInstance, error) {
 	hc, hcErr := httpClient()
 	if hcErr != nil {
 		return nil, fmt.Errorf(
-			"Failed initialize HTTP client: %v\n",
+			"Failed initialize HTTP client: %v",
 			hcErr,
 		)
 	}

@@ -46,7 +46,7 @@ func configFromFLB(plugin unsafe.Pointer) (*Config, error) {
 
 	id := flbCK("id")
 	if len(id) < 1 {
-		return nil, fmt.Errorf("[%s] Missing `Id` in [OUTPUT] config\n", PLUGIN_NAME)
+		return nil, fmt.Errorf("[%s] Missing `Id` in [OUTPUT] config", PLUGIN_NAME)
 	}
 
 	log := flbCK("log")
