@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	strftime "github.com/jamesjj/strftime"
+	strftime "github.com/lestrrat-go/strftime"
 	"io/ioutil"
 	"net/url"
 	"strconv"

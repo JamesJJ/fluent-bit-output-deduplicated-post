@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	lru "github.com/hashicorp/golang-lru"
-	strftime "github.com/jamesjj/strftime"
+	strftime "github.com/lestrrat-go/strftime"
 )
 
 type (

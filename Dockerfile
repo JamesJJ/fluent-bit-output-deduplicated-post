@@ -1,22 +1,20 @@
 ARG BASE_IMAGE=golang:1.14
 
-FROM $BASE_IMAGE as gocode
+FROM $BASE_IMAGE as gobuilder
 
 WORKDIR /root
 
 ENV GOOS=linux\
     GOARCH=amd64
 
-COPY /src/* /root/
+COPY . .
 
-RUN go get -d -v ./...
-
-FROM gocode as gobuilder
-
-RUN go build \
+RUN \
+    go build \
+    -mod=vendor \
     -buildmode=c-shared \
     -o /out_http_post.so \
-    ./
+    ./src/
 
 FROM fluent/fluent-bit:1.4.4 as fluentbit
 
