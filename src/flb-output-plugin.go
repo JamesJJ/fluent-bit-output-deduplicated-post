@@ -116,7 +116,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		// If record timestamp is too old or more than 1h in future, then discard it!
 		if recordAge > time.Duration(conf.DeduplicateTTL)*time.Second ||
 			timestampAsTime.After(timeNow.Add(1*time.Hour)) {
-			log.Info.Printf(
+			log.Error.Printf(
 				"Record too old (or in future): recordIndex=%d, recordAge=%s, timestamp=%s\n",
 				count,
 				recordAge,
@@ -230,7 +230,7 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 
 		// Marshal to JSON and put in to channel
 		if json, err := json.Marshal(stringified); err == nil {
-			log.Debug.Printf("SENDING => %s\n", json)
+			log.Info.Printf("Sending => %s\n", json)
 			pi.EventJsonChan <- &json
 		} else {
 			log.Error.Printf("Failed to marshal as JSON: %v (%#v)\n", err, stringified)
