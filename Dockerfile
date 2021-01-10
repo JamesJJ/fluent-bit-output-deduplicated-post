@@ -16,7 +16,7 @@ RUN \
     -o /out_http_post.so \
     ./src/
 
-FROM fluent/fluent-bit:1.6.7 as fluentbit
+FROM fluent/fluent-bit:1.6.10 as fluentbit
 
 COPY --from=gobuilder /out_http_post.so /fluent-bit/bin/
 
